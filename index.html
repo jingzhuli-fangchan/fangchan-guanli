@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>小景·房产工作台</title>
+<style>
+:root{
+  --green:#0a9e63; --green-d:#07824f; --bg:#f2f5f3; --card:#ffffff;
+  --text:#1c1c1e; --muted:#8a8f8c; --line:#e8ecea; --red:#e5484d; --orange:#f59e0b; --blue:#2f80ed;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); max-width:520px; margin:0 auto; padding-bottom:76px;}
+header{position:sticky; top:0; z-index:10; background:linear-gradient(135deg,#0a9e63,#0bbf7a); color:#fff; padding:16px 16px 14px;}
+header h1{margin:0; font-size:19px; font-weight:700;}
+header p{margin:4px 0 0; font-size:12px; opacity:.9;}
+main{padding:12px 12px 0;}
+.panel{display:none;}
+.panel.active{display:block; animation:fade .2s;}
+@keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+.toolbar{display:flex; gap:8px; margin-bottom:10px;}
+.toolbar input[type=search]{flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; background:#fff; outline:none;}
+.toolbar select{padding:10px 8px; border:1px solid var(--line); border-radius:10px; font-size:13px; background:#fff; max-width:110px;}
+.card{background:var(--card); border-radius:14px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.card h3{margin:0 0 6px; font-size:16px;}
+.card .meta{font-size:13px; color:var(--muted); line-height:1.7;}
+.card .price{font-size:20px; font-weight:800; color:var(--red); margin:6px 0;}
+.chip{display:inline-block; font-size:11px; padding:3px 9px; border-radius:20px; margin:2px 4px 2px 0; background:#eef2f0; color:#555;}
+.chip.g{background:#e5f6ec; color:var(--green-d);}
+.chip.o{background:#fef3e2; color:#b45309;}
+.chip.b{background:#e8f1fe; color:#1d5fc2;}
+.chip.r{background:#fdecec; color:#c0362c;}
+.rowbtns{display:flex; gap:8px; margin-top:10px;}
+.btn{flex:1; padding:10px 0; border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:block;}
+.btn-p{background:var(--green); color:#fff;}
+.btn-p:active{background:var(--green-d);}
+.btn-g{background:#eef2f0; color:#333;}
+.btn-call{background:var(--blue); color:#fff;}
+.fab{position:fixed; bottom:84px; right:calc(50% - 250px + 16px); width:56px; height:56px; border-radius:50%; background:var(--green); color:#fff; font-size:28px; border:none; box-shadow:0 4px 14px rgba(10,158,99,.4); cursor:pointer; z-index:20;}
+@media(max-width:520px){ .fab{right:16px;} }
+nav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:520px; background:#fff; border-top:1px solid var(--line); display:flex; z-index:30;}
+nav button{flex:1; border:none; background:none; padding:9px 0 10px; font-size:11px; color:var(--muted); cursor:pointer;}
+nav button .ic{font-size:21px; display:block; margin-bottom:2px;}
+nav button.on{color:var(--green-d); font-weight:700;}
+.empty{text-align:center; color:var(--muted); padding:40px 20px; font-size:14px; line-height:1.8;}
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; display:none; align-items:flex-end; justify-content:center;}
+.modal-bg.show{display:flex;}
+.sheet{background:#fff; width:100%; max-width:520px; max-height:88vh; overflow-y:auto; border-radius:18px 18px 0 0; padding:18px 16px 26px; animation:up .25s;}
+@keyframes up{from{transform:translateY(40px); opacity:.6;} to{transform:none; opacity:1;}}
+.sheet h2{margin:0 0 14px; font-size:17px;}
+.f-row{margin-bottom:12px;}
+.f-row label{display:block; font-size:13px; color:#555; margin-bottom:5px;}
+.f-row label b{color:var(--red);}
+.f-row input,.f-row select,.f-row textarea{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:#fafbfb; outline:none;}
+.f-row input:focus,.f-row select:focus,.f-row textarea:focus{border-color:var(--green); background:#fff;}
+.f-2{display:flex; gap:10px;}
+.f-2 .f-row{flex:1;}
+.toast{position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.82); color:#fff; padding:10px 20px; border-radius:20px; font-size:14px; z-index:99; display:none;}
+.stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;}
+.stat{background:#fff; border-radius:14px; padding:16px 14px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.stat .n{font-size:26px; font-weight:800; color:var(--green-d);}
+.stat .t{font-size:12px; color:var(--muted); margin-top:4px;}
+.sect{font-size:13px; color:var(--muted); margin:16px 4px 8px; font-weight:600;}
+.match-ok{border-left:4px solid var(--green);}
+select.full{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:#fff; margin-bottom:10px;}
+.seg{display:flex; background:#e8ecea; border-radius:12px; padding:4px; margin-bottom:12px;}
+.seg button{flex:1; border:none; background:none; padding:9px 0; border-radius:9px; font-size:14px; color:#666; cursor:pointer;}
+.seg button.on{background:#fff; color:var(--green-d); font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.danger{color:var(--red);}
+.hint{font-size:12px; color:var(--muted); line-height:1.8; padding:0 4px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏠 小景·房产工作台</h1>
+  <p>房源 · 客源 · 房客匹配，手机随身带</p>
+</header>
+<main>
+  <!-- 房源 -->
+  <section class="panel active" id="p-prop">
+    <div class="toolbar">
+      <input type="search" id="q-prop" placeholder="搜小区名…" oninput="renderProps()">
+      <select id="f-area" onchange="renderProps()">
+        <option value="">全部区域</option><option>沙河口</option><option>高新</option><option>甘井子</option><option>中山</option><option>西岗</option><option>其他</option>
+      </select>
+      <select id="f-status" onchange="renderProps()">
+        <option value="">全部状态</option><option>在售</option><option>已售</option><option>暂缓</option>
+      </select>
+    </div>
+    <div id="list-prop"></div>
+  </section>
+  <!-- 客源 -->
+  <section class="panel" id="p-cli">
+    <div class="toolbar">
+      <input type="search" id="q-cli" placeholder="搜姓名/电话…" oninput="renderClients()">
+      <select id="f-fol" onchange="renderClients()">
+        <option value="">全部跟进</option><option>待跟进</option><option>跟进中</option><option>已带看</option><option>已成交</option><option>无效</option>
+      </select>
+    </div>
+    <div id="list-cli"></div>
+  </section>
+  <!-- 匹配 -->
+  <section class="panel" id="p-match">
+    <div class="seg">
+      <button id="seg-c" class="on" onclick="matchMode('c')">为客户找房</button>
+      <button id="seg-p" onclick="matchMode('p')">为房源找客户</button>
+    </div>
+    <div id="match-body"></div>
+  </section>
+  <!-- 统计 -->
+  <section class="panel" id="p-stat">
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="sect">数据管理</div>
+    <div class="card">
+      <div class="rowbtns">
+        <button class="btn btn-g" onclick="exportData()">导出备份</button>
+        <button class="btn btn-g" onclick="document.getElementById('importFile').click()">导入备份</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <div class="rowbtns">
+        <button class="btn btn-g" onclick="seedData()">填入示例数据</button>
+        <button class="btn btn-g danger" onclick="clearAll()">清空全部</button>
+      </div>
+      <p class="hint">数据只保存在本机浏览器里，不上传任何服务器。换手机前记得先「导出备份」，到新手机上再「导入备份」。「填入示例数据」可帮你快速熟悉操作，熟练后清空即可。</p>
+    </div>
+  </section>
+</main>
+<button class="fab" onclick="openForm()">＋</button>
+<nav>
+  <button class="on" onclick="go('p-prop',this)"><span class="ic">🏠</span>房源</button>
+  <button onclick="go('p-cli',this)"><span class="ic">👥</span>客源</button>
+  <button onclick="go('p-match',this)"><span class="ic">🔗</span>匹配</button>
+  <button onclick="go('p-stat',this)"><span class="ic">📊</span>统计</button>
+</nav>
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeForm()">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ===== 数据层 ===== */
+const LS='xiaojing_fdc_v1';
+let S=load();
+function load(){ try{ const d=JSON.parse(localStorage.getItem(LS)); if(d&&d.props&&d.clients) return d; }catch(e){} return {props:[],clients:[],seq:1}; }
+function save(){ localStorage.setItem(LS,JSON.stringify(S)); }
+function nid(){ return 'x'+(Date.now())+'_'+(S.seq++); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',1800); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(ts){ const d=new Date(ts); return (d.getMonth()+1)+'月'+d.getDate()+'日'; }
+const AREAS=['沙河口','高新','甘井子','中山','西岗','其他'];
+const PSTATUS=['在售','已售','暂缓'];
+const DECOR=['毛坯','简装','精装','豪装'];
+const FOLLOWS=['待跟进','跟进中','已带看','已成交','无效'];
+const WILLS=['高','中','低'];
+const SRCS=['抖音直播','门店','转介绍','朋友圈','其他'];
+
+/* ===== 导航 ===== */
+let curTab='p-prop';
+function go(id,btn){
+  curTab=id;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  if(id==='p-prop')renderProps(); if(id==='p-cli')renderClients(); if(id==='p-match')renderMatch(); if(id==='p-stat')renderStats();
+  window.scrollTo(0,0);
+}
+
+/* ===== 房源 ===== */
+function propPrice(p){ return Number(p.total)||0; }
+function propUnit(p){ const a=Number(p.area); if(!a||!p.total) return ''; return Math.round(p.total*10000/a)+'元/㎡'; }
+function statusChip(s){ return s==='在售'?'<span class="chip g">在售</span>':s==='已售'?'<span class="chip r">已售</span>':'<span class="chip o">暂缓</span>'; }
+function renderProps(){
+  const q=(document.getElementById('q-prop').value||'').trim();
+  const ar=document.getElementById('f-area').value, st=document.getElementById('f-status').value;
+  let arr=S.props.slice().sort((a,b)=>b.created-a.created);
+  if(q)arr=arr.filter(p=>(p.name||'').includes(q));
+  if(ar)arr=arr.filter(p=>p.area2===ar);
+  if(st)arr=arr.filter(p=>p.status===st);
+  const el=document.getElementById('list-prop');
+  if(!arr.length){ el.innerHTML='<div class="empty">还没有房源<br>点右下角 ＋ 录入第一套</div>'; return; }
+  el.innerHTML=arr.map(p=>`
+  <div class="card">
+    <h3>${esc(p.name)} <span style="font-size:12px;color:#999;font-weight:400">${esc(p.area2||'')}</span></h3>
+    <div class="price">${propPrice(p)}万 <span style="font-size:12px;color:#999;font-weight:400">${propUnit(p)}</span></div>
+    <div class="meta">${p.area?p.area+'㎡ · ':''}${esc(p.huxing||'')} ${p.floor?' · '+esc(p.floor)+'楼':''} ${p.toward?' · '+esc(p.toward):''}${p.decor?' · '+esc(p.decor):''}</div>
+    <div style="margin-top:6px">${statusChip(p.status)}${p.ownerTel?'<span class="chip">房东有电话</span>':''}<span class="chip">${fmtDate(p.created)}录入</span></div>
+    ${p.note?'<div class="meta" style="margin-top:6px">📝 '+esc(p.note)+'</div>':''}
+    <div class="rowbtns">
+      <button class="btn btn-g" onclick="openForm('prop','${p.id}')">编辑</button>
+      <button class="btn btn-g" onclick="togglePropStatus('${p.id}')">${p.status==='在售'?'标为已售':'改回在售'}</button>
+      <button class="btn btn-g danger" onclick="delOne('props','${p.id}')">删除</button>
+    </div>
+  </div>`).join('');
+}
+function togglePropStatus(id){
+  const p=S.props.find(x=>x.id===id); if(!p)return;
+  p.status = p.status==='在售' ? '已售' : '在售'; save(); renderProps(); renderStats(); toast('已更新');
+}
+
+/* ===== 客源 ===== */
+function folChip(f){ return f==='待跟进'?'<span class="chip r">待跟进</span>':f==='跟进中'?'<span class="chip o">跟进中</span>':f==='已带看'?'<span class="chip b">已带看</span>':f==='已成交'?'<span class="chip g">已成交</span>':'<span class="chip">无效</span>'; }
+function renderClients(){
+  const q=(document.getElementById('q-cli').value||'').trim();
+  const fo=document.getElementById('f-fol').value;
+  let arr=S.clients.slice().sort((a,b)=>b.created-a.created);
+  if(q)arr=arr.filter(c=>(c.name||'').includes(q)||(c.tel||'').includes(q));
+  if(fo)arr=arr.filter(c=>c.follow===fo);
+  const el=document.getElementById('list-cli');
+  if(!arr.length){ el.innerHTML='<div class="empty">还没有客源<br>点右下角 ＋ 录入第一位客户</div>'; return; }
+  el.innerHTML=arr.map(c=>`
+  <div class="card">
+    <h3>${esc(c.name)} ${c.will?'<span class="chip '+(c.will==='高'?'r':c.will==='中'?'o':'')+'">意向'+esc(c.will)+'</span>':''}</h3>
+    <div class="meta">🎯 ${esc(c.needArea||'区域不限')} · 预算${c.budget?c.budget+'万以内':'面议'}${c.needSize?' · '+esc(c.needSize):''}</div>
+    <div class="meta">${c.tel?'📞 '+esc(c.tel)+' ':''}${c.wechat?'💬 '+esc(c.wechat)+' ':''}${c.douyin?'🎵 '+esc(c.douyin):''}</div>
+    <div style="margin-top:6px">${folChip(c.follow)}${c.src?'<span class="chip">'+esc(c.src)+'</span>':''}<span class="chip">${fmtDate(c.created)}录入</span></div>
+    ${c.note?'<div class="meta" style="margin-top:6px">📝 '+esc(c.note)+'</div>':''}
+    <div class="rowbtns">
+      ${c.tel?`<a class="btn btn-call" href="tel:${esc(c.tel)}">打电话</a>`:''}
+      <button class="btn btn-g" onclick="openForm('cli','${c.id}')">编辑</button>
+      <button class="btn btn-g" onclick="cycleFollow('${c.id}')">跟进✓</button>
+      <button class="btn btn-g danger" onclick="delOne('clients','${c.id}')">删除</button>
+    </div>
+  </div>`).join('');
+}
+function cycleFollow(id){
+  const c=S.clients.find(x=>x.id===id); if(!c)return;
+  const i=FOLLOWS.indexOf(c.follow); c.follow=FOLLOWS[(i+1)%FOLLOWS.length];
+  save(); renderClients(); renderStats(); toast('跟进状态：'+c.follow);
+}
+function delOne(key,id){
+  if(!confirm('确定删除这条记录吗？'))return;
+  S[key]=S[key].filter(x=>x.id!==id); save();
+  if(key==='props')renderProps(); else renderClients(); renderStats(); toast('已删除');
+}
+
+/* ===== 表单 ===== */
+let editing=null; // {kind:'prop'|'cli', id}
+function openForm(kind,id){
+  if(!kind) kind = curTab==='p-cli' ? 'cli' : 'prop';
+  editing={kind,id:id||null};
+  const d = id ? (kind==='prop'?S.props:S.clients).find(x=>x.id===id) : null;
+  const val=(k)=>d?(d[k]==null?'':d[k]):'';
+  let h='';
+  if(kind==='prop'){
+    h=`<h2>${id?'编辑房源':'录入房源'}</h2>
+    <div class="f-row"><label>小区名称 <b>*</b></label><input id="f_name" value="${esc(val('name'))}" placeholder="如：中海紫御观邸"></div>
+    <div class="f-2">
+      <div class="f-row"><label>区域 <b>*</b></label><select id="f_area2">${AREAS.map(a=>`<option ${val('area2')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div class="f-row"><label>状态</label><select id="f_status">${PSTATUS.map(a=>`<option ${val('status')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+    </div>
+    <div class="f-2">
+      <div class="f-row"><label>总价(万) <b>*</b></label><input id="f_total" type="number" inputmode="decimal" value="${esc(val('total'))}" placeholder="如：235"></div>
+      <div class="f-row"><label>面积(㎡)</label><input id="f_area" type="number" inputmode="decimal" value="${esc(val('area'))}" placeholder="如：89"></div>
+    </div>
+    <div class="f-2">
+      <div class="f-row"><label>户型</label><input id="f_huxing" value="${esc(val('huxing'))}" placeholder="如：3室2厅1卫"></div>
+      <div class="f-row"><label>楼层</label><input id="f_floor" value="${esc(val('floor'))}" placeholder="如：5/28"></div>
+    </div>
+    <div class="f-2">
+      <div class="f-row"><label>朝向</label><select id="f_toward"><option value="">—</option>${['南','南北','东','东南','西','北'].map(a=>`<option ${val('toward')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div class="f-row"><label>装修</label><select id="f_decor"><option value="">—</option>${DECOR.map(a=>`<option ${val('decor')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+    </div>
+    <div class="f-row"><label>房东电话</label><input id="f_ownerTel" type="tel" value="${esc(val('ownerTel'))}" placeholder="选填"></div>
+    <div class="f-row"><label>备注</label><textarea id="f_note" rows="2" placeholder="如：急售、满五唯一、看房时间…">${esc(val('note'))}</textarea></div>`;
+  }else{
+    h=`<h2>${id?'编辑客源':'录入客源'}</h2>
+    <div class="f-row"><label>姓名/昵称 <b>*</b></label><input id="f_name" value="${esc(val('name'))}" placeholder="如：王先生 / 抖音昵称"></div>
+    <div class="f-2">
+      <div class="f-row"><label>电话</label><input id="f_tel" type="tel" value="${esc(val('tel'))}" placeholder="选填"></div>
+      <div class="f-row"><label>微信</label><input id="f_wechat" value="${esc(val('wechat'))}" placeholder="选填"></div>
+    </div>
+    <div class="f-row"><label>抖音号</label><input id="f_douyin" value="${esc(val('douyin'))}" placeholder="选填，直播间来的客户"></div>
+    <div class="f-2">
+      <div class="f-row"><label>需求区域</label><select id="f_needArea"><option value="">不限</option>${AREAS.map(a=>`<option ${val('needArea')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div class="f-row"><label>预算上限(万)</label><input id="f_budget" type="number" inputmode="decimal" value="${esc(val('budget'))}" placeholder="如：260"></div>
+    </div>
+    <div class="f-row"><label>需求面积/户型</label><input id="f_needSize" value="${esc(val('needSize'))}" placeholder="如：80-100㎡ / 3室"></div>
+    <div class="f-2">
+      <div class="f-row"><label>意向度</label><select id="f_will"><option value="">—</option>${WILLS.map(a=>`<option ${val('will')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div class="f-row"><label>来源</label><select id="f_src"><option value="">—</option>${SRCS.map(a=>`<option ${val('src')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+    </div>
+    <div class="f-row"><label>跟进状态</label><select id="f_follow">${FOLLOWS.map(a=>`<option ${val('follow')===a?'selected':''}>${a}</option>`).join('')}</select></div>
+    <div class="f-row"><label>备注</label><textarea id="f_note" rows="2" placeholder="如：周末看房、孩子上学需求…">${esc(val('note'))}</textarea></div>`;
+  }
+  h+=`<div class="rowbtns" style="margin-top:16px"><button class="btn btn-g" onclick="closeForm()">取消</button><button class="btn btn-p" onclick="saveForm()">保存</button></div>`;
+  document.getElementById('sheet').innerHTML=h;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeForm(){ document.getElementById('modalBg').classList.remove('show'); editing=null; }
+function gv(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function saveForm(){
+  if(!editing)return;
+  const {kind,id}=editing;
+  const name=gv('f_name');
+  if(!name){ toast('请填写名称'); return; }
+  let rec;
+  if(kind==='prop'){
+    const total=gv('f_total');
+    if(!total){ toast('请填写总价'); return; }
+    rec={id:id||nid(), name, area2:gv('f_area2'), status:gv('f_status')||'在售', total, area:gv('f_area'), huxing:gv('f_huxing'), floor:gv('f_floor'), toward:gv('f_toward'), decor:gv('f_decor'), ownerTel:gv('f_ownerTel'), note:gv('f_note'), created:id?(S.props.find(x=>x.id===id)||{}).created||Date.now():Date.now()};
+    if(id){S.props=S.props.map(x=>x.id===id?rec:x);}else{S.props.push(rec);}
+  }else{
+    rec={id:id||nid(), name, tel:gv('f_tel'), wechat:gv('f_wechat'), douyin:gv('f_douyin'), needArea:gv('f_needArea'), budget:gv('f_budget'), needSize:gv('f_needSize'), will:gv('f_will'), src:gv('f_src'), follow:gv('f_follow')||'待跟进', note:gv('f_note'), created:id?(S.clients.find(x=>x.id===id)||{}).created||Date.now():Date.now()};
+    if(id){S.clients=S.clients.map(x=>x.id===id?rec:x);}else{S.clients.push(rec);}
+  }
+  save(); closeForm();
+  if(kind==='prop')renderProps(); else renderClients(); renderStats();
+  toast('已保存');
+}
+
+/* ===== 房客匹配 ===== */
+let mMode='c', mSel='';
+function matchMode(m){ mMode=m; mSel=''; document.getElementById('seg-c').classList.toggle('on',m==='c'); document.getElementById('seg-p').classList.toggle('on',m==='p'); renderMatch(); }
+function matchPropsFor(c){
+  return S.props.filter(p=>{
+    if(p.status!=='在售')return false;
+    if(c.needArea && p.area2!==c.needArea)return false;
+    if(c.budget && Number(p.total)>Number(c.budget))return false;
+    return true;
+  }).sort((a,b)=>{
+    const da=c.budget?Math.abs(Number(c.budget)-Number(a.total)):0;
+    const db=c.budget?Math.abs(Number(c.budget)-Number(b.total)):0;
+    return da-db;
+  });
+}
+function matchClientsFor(p){
+  return S.clients.filter(c=>{
+    if(c.follow==='已成交'||c.follow==='无效')return false;
+    if(c.needArea && c.needArea!==p.area2)return false;
+    if(c.budget && Number(p.total)>Number(c.budget))return false;
+    return true;
+  });
+}
+function renderMatch(){
+  const el=document.getElementById('match-body');
+  if(mMode==='c'){
+    const opts=S.clients.filter(c=>c.follow!=='已成交'&&c.follow!=='无效');
+    if(!opts.length){ el.innerHTML='<div class="empty">还没有有效客源<br>先去「客源」里录入客户</div>'; return; }
+    if(!mSel||!opts.find(c=>c.id===mSel))mSel=opts[0].id;
+    const c=opts.find(x=>x.id===mSel);
+    const hits=matchPropsFor(c);
+    el.innerHTML=`<select class="full" onchange="mSel=this.value;renderMatch()">${opts.map(x=>`<option value="${x.id}" ${x.id===mSel?'selected':''}>${esc(x.name)}（${esc(x.needArea||'不限')}·${x.budget?x.budget+'万':''}）</option>`).join('')}</select>`
+    +(hits.length?`<div class="sect" style="margin-top:0">为「${esc(c.name)}」找到 ${hits.length} 套匹配房源</div>`+hits.map(p=>`
+      <div class="card match-ok">
+        <h3>${esc(p.name)}</h3>
+        <div class="price">${propPrice(p)}万 <span style="font-size:12px;color:#999">${propUnit(p)}</span></div>
+        <div class="meta">${p.area?p.area+'㎡ · ':''}${esc(p.huxing||'')} · ${esc(p.area2||'')} ${p.floor?'· '+esc(p.floor)+'楼':''}</div>
+        <div style="margin-top:6px"><span class="chip g">区域✓</span>${c.budget?'<span class="chip g">预算✓</span>':''}</div>
+      </div>`).join('')
+      :'<div class="empty">暂无匹配房源<br>换个客户或多录几套房源试试</div>');
+  }else{
+    const opts=S.props.filter(p=>p.status==='在售');
+    if(!opts.length){ el.innerHTML='<div class="empty">还没有在售房源<br>先去「房源」里录入</div>'; return; }
+    if(!mSel||!opts.find(p=>p.id===mSel))mSel=opts[0].id;
+    const p=opts.find(x=>x.id===mSel);
+    const hits=matchClientsFor(p);
+    el.innerHTML=`<select class="full" onchange="mSel=this.value;renderMatch()">${opts.map(x=>`<option value="${x.id}" ${x.id===mSel?'selected':''}>${esc(x.name)}（${propPrice(x)}万·${esc(x.area2||'')}）</option>`).join('')}</select>`
+    +`<div class="sect" style="margin-top:0">「${esc(p.name)}」可推给 ${hits.length} 位客户</div>`
+    +(hits.length?hits.map(c=>`
+      <div class="card match-ok">
+        <h3>${esc(c.name)} ${folChip(c.follow)}</h3>
+        <div class="meta">🎯 ${esc(c.needArea||'区域不限')} · 预算${c.budget?c.budget+'万':''} ${c.tel?'· 📞 '+esc(c.tel):''}</div>
+        <div class="rowbtns">${c.tel?`<a class="btn btn-call" href="tel:${esc(c.tel)}">打电话</a>`:''}<button class="btn btn-g" onclick="go('p-cli',document.querySelectorAll('nav button')[1])">去跟进</button></div>
+      </div>`).join('')
+      :'<div class="empty">暂无匹配客户<br>多积累客源，系统会自动配对</div>');
+  }
+}
+
+/* ===== 统计 & 数据管理 ===== */
+function renderStats(){
+  const onSale=S.props.filter(p=>p.status==='在售');
+  const totalVal=onSale.reduce((s,p)=>s+(Number(p.total)||0),0);
+  const todo=S.clients.filter(c=>c.follow==='待跟进'||c.follow==='跟进中').length;
+  const mStart=new Date(); mStart.setDate(1); mStart.setHours(0,0,0,0);
+  const newP=S.props.filter(p=>p.created>=mStart.getTime()).length;
+  const newC=S.clients.filter(c=>c.created>=mStart.getTime()).length;
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat"><div class="n">${onSale.length}</div><div class="t">在售房源（套）</div></div>
+    <div class="stat"><div class="n">${Math.round(totalVal)}万</div><div class="t">在售总货值</div></div>
+    <div class="stat"><div class="n">${todo}</div><div class="t">待跟进客源（人）</div></div>
+    <div class="stat"><div class="n">${newP}/${newC}</div><div class="t">本月新增 房源/客源</div></div>`;
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='房产工作台备份_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000); toast('备份已导出');
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+      const d=JSON.parse(r.result);
+      if(!d.props||!d.clients)throw 0;
+      if(!confirm('导入将覆盖当前全部数据，确定吗？'))return;
+      S=d; save(); renderProps(); renderClients(); renderStats(); toast('导入成功');
+    }catch(e){ toast('文件格式不对，导入失败'); } };
+  r.readAsText(f); ev.target.value='';
+}
+function clearAll(){ if(confirm('确定清空全部房源和客源吗？此操作不可恢复！')){ S={props:[],clients:[],seq:1}; save(); renderProps(); renderClients(); renderStats(); toast('已清空'); } }
+function seedData(){
+  if(!confirm('填入2套房源+2位客户的示例数据吗？'))return;
+  const t=Date.now();
+  S.props.push(
+    {id:nid(),name:'中海紫御观邸',area2:'高新',status:'在售',total:'235',area:'89',huxing:'3室2厅1卫',floor:'12/28',toward:'南',decor:'精装',ownerTel:'',note:'房东诚心卖，看房提前约',created:t},
+    {id:nid(),name:'亿达国际新城',area2:'沙河口',status:'在售',total:'158',area:'72',huxing:'2室2厅1卫',floor:'5/18',toward:'南北',decor:'简装',ownerTel:'',note:'',created:t}
+  );
+  S.clients.push(
+    {id:nid(),name:'王先生',tel:'13800001111',wechat:'',douyin:'',needArea:'高新',budget:'260',needSize:'80-100㎡',will:'高',src:'抖音直播',follow:'待跟进',note:'周末看房',created:t},
+    {id:nid(),name:'李女士',tel:'',wechat:'lixx',douyin:'',needArea:'沙河口',budget:'170',needSize:'70㎡左右',will:'中',src:'门店',follow:'跟进中',note:'',created:t}
+  );
+  save(); renderProps(); renderClients(); renderStats(); toast('示例数据已填入');
+}
+
+/* ===== 初始化 ===== */
+renderProps(); renderStats();
+</script>
+</body>
+</html>
