@@ -220,7 +220,7 @@ async function doLogin(){
     res=await retryNet(()=>sb.auth.signInWithPassword({email,password:pw}),5,
       (i,n)=>{ err.textContent='网络不太稳，正在重试（'+i+'/'+n+'）…'; });
   }catch(e){
-    err.textContent='连接失败：到云端的路不太稳，等几秒再点一次登录';
+    err.textContent='连接失败：'+(e&&e.name?e.name+'：':'')+(e&&e.message?e.message:'未知错误')+'（重试5次均失败）';
     if(btn){ btn.disabled=false; btn.textContent='登录'; }
     return;
   }
