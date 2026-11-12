@@ -197,17 +197,36 @@ function matchQ(l,q){
     .filter(Boolean).some(v=>String(v).toLowerCase().includes(q));
 }
 
-/* ===== 登录 ===== */
+/* ===== 登录（到云端的路不太稳，失败自动重试） ===== */
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function retryNet(fn,tries,step){
+  let lastErr=null;
+  for(let i=0;i<tries;i++){
+    try{ return await fn(); }
+    catch(e){ lastErr=e; if(step) step(i+1,tries); if(i<tries-1) await sleep(2000); }
+  }
+  throw lastErr;
+}
 async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pw=document.getElementById('login-pass').value;
   const err=document.getElementById('login-err');
+  const btn=document.querySelector('#view-login .btn-p');
   err.textContent='';
   if(!email||!pw){ err.textContent='请输入邮箱和密码'; return; }
+  if(btn){ btn.disabled=true; btn.textContent='登录中…'; }
   let res;
-  try{ res=await sb.auth.signInWithPassword({email,password:pw}); }
-  catch(e){ err.textContent='连接失败：云端可能还没恢复，稍后再试'; return; }
+  try{
+    res=await retryNet(()=>sb.auth.signInWithPassword({email,password:pw}),5,
+      (i,n)=>{ err.textContent='网络不太稳，正在重试（'+i+'/'+n+'）…'; });
+  }catch(e){
+    err.textContent='连接失败：到云端的路不太稳，等几秒再点一次登录';
+    if(btn){ btn.disabled=false; btn.textContent='登录'; }
+    return;
+  }
+  if(btn){ btn.disabled=false; btn.textContent='登录'; }
   if(res.error){ err.textContent='登录失败：'+res.error.message; return; }
+  err.textContent='';
   await enter();
 }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} location.reload(); }
@@ -220,14 +239,22 @@ async function doSetPw(){
   if(!p1||p1.length<6){ err.textContent='密码至少 6 位'; return; }
   if(p1!==p2){ err.textContent='两次输入不一致'; return; }
   let res;
-  try{ res=await sb.auth.updateUser({password:p1}); }
-  catch(e){ err.textContent='保存失败：网络不通，稍后再试'; return; }
+  try{ res=await retryNet(()=>sb.auth.updateUser({password:p1}),3,
+    (i,n)=>{ err.textContent='网络不太稳，正在重试（'+i+'/'+n+'）…'; }); }
+  catch(e){ err.textContent='保存失败：网络不太稳，等几秒再试'; return; }
   if(res.error){ err.textContent='保存失败：'+res.error.message; return; }
   await enter();
 }
 document.getElementById('setpw-2').addEventListener('keydown',e=>{ if(e.key==='Enter')doSetPw(); });
 async function enter(){
-  const {data}=await sb.auth.getUser(); USER=data.user;
+  let data;
+  try{ ({data}=await retryNet(()=>sb.auth.getUser(),3)); }
+  catch(e){
+    const err=document.getElementById('login-err');
+    if(err) err.textContent='登录上了，但没拉到用户信息，刷新页面再试';
+    return;
+  }
+  USER=data.user;
   if(!USER) return;
   document.getElementById('view-login').style.display='none';
   document.getElementById('view-app').style.display='block';
@@ -243,10 +270,11 @@ async function refreshLeads(manual){
   if(manual){ el.innerHTML='<div class="loading">加载中…</div>'; }
   let res;
   try{
-    res=await sb.from('leads').select('*');
+    res=await retryNet(()=>sb.from('leads').select('*'),4,
+      ()=>{ net.textContent='● 正在重连云端…'; });
   }catch(e){
-    net.textContent='● 云端未连接（网络或数据库未恢复）';
-    el.innerHTML='<div class="errcard"><b>数据加载失败。</b><br>可能原因：云端数据库还没恢复（需在 Supabase 控制台点 Resume），或线索表还没建好（需先执行 leads-schema.sql）。<br>恢复后点“刷新”再试。</div>';
+    net.textContent='● 云端未连接（网络不太稳）';
+    el.innerHTML='<div class="errcard"><b>数据加载失败。</b><br>可能原因：到云端的网络不太稳。点“刷新”再试。</div>';
     return;
   }
   if(res.error){
@@ -254,7 +282,7 @@ async function refreshLeads(manual){
     const msg=String(res.error.message||'');
     const hint=msg.indexOf('does not exist')>=0||msg.indexOf('leads')>=0
       ? '线索表还没建好：请先在 Supabase SQL 编辑器里执行 leads-schema.sql，再刷新。'
-      : '可能原因：云端数据库还没恢复（需在 Supabase 控制台点 Resume）。恢复后点“刷新”再试。';
+      : '可能原因：到云端的网络不太稳。点“刷新”再试。';
     el.innerHTML='<div class="errcard"><b>数据加载失败：</b>'+esc(msg)+'<br>'+hint+'</div>';
     return;
   }
