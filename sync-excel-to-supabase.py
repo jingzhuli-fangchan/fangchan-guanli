@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +34,44 @@ DEFAULT_EXCEL = os.path.expanduser(
 # 同步时可更新的“表格字段”（其余字段一律不动）
 SHEET_FIELDS = ["name", "douyin_id", "phone", "phone_clean", "wechat",
                 "region", "source", "intent", "sheet_status", "lead_time"]
+
+
+def _retry(fn, label, tries=6, sleep=8):
+    """链路抖动严重：失败就等几秒重跑，耗尽才抛错。
+    HTTP 4xx 是请求本身的问题，重试也没用，直接抛。"""
+    last = None
+    for i in range(1, tries + 1):
+        try:
+            return fn()
+        except Exception as e:
+            last = e
+            if isinstance(e, SupabaseError) and "HTTP 4" in str(e):
+                raise
+            print(f"  [{label}] 第 {i}/{tries} 次失败：{str(e)[:120]}")
+            if i < tries:
+                time.sleep(sleep)
+    raise last
+
+
+def fetch_existing(client):
+    """分页拉库内线索：每页 20 条、只取比对用的 4 个字段，
+    单个响应很小，不容易被抖动的链路截断。"""
+    out, offset = [], 0
+    cols = "id,douyin_id,phone_clean,lead_time"
+    while True:
+        page = _retry(
+            lambda o=offset: client._req(
+                "GET", "/rest/v1/leads",
+                params={"select": cols, "order": "lead_time.desc",
+                        "limit": 20, "offset": o}),
+            f"读库 offset={offset}")
+        if not page:
+            break
+        out.extend(page)
+        if len(page) < 20:
+            break
+        offset += 20
+    return out
 
 
 def clean_phone(v):
@@ -130,19 +169,28 @@ def main():
     print(f"Excel 共 {len(rows)} 行数据")
 
     client = Client()
+    no_creds = not (os.environ.get("LEADS_SYNC_EMAIL")
+                    and os.environ.get("LEADS_SYNC_PASSWORD"))
     if args.dry_run:
         print("[dry-run] 只打印计划，不写库")
         existing = None
-        # dry-run 时仍需登录读库才能比对；如未给凭证则只做 Excel 自检
-        try:
-            client.login()
-            existing = client.select_leads()
-        except SupabaseError as e:
-            print(f"  无法读库（{e}），仅做 Excel 自检")
+        # dry-run 时仍需登录读库才能比对；没给凭证时只做 Excel 自检
+        if no_creds:
+            print("  未给凭证，仅做 Excel 自检")
+        else:
+            try:
+                _retry(client.login, "login")
+                existing = fetch_existing(client)
+            except Exception as e:
+                print(f"  无法读库（{e}），请重跑")
+                return 1
     else:
-        email = client.login()
+        if no_creds:
+            print("缺少登录凭证：请设置环境变量 LEADS_SYNC_EMAIL 和 LEADS_SYNC_PASSWORD")
+            return 1
+        email = _retry(client.login, "login")
         print(f"已登录：{email}")
-        existing = client.select_leads()
+        existing = fetch_existing(client)
 
     if existing is None:
         print(f"Excel 最新留资时间：{max((r['lead_time_str'] for r in rows if r['lead_time_str']), default='无')}")
@@ -175,16 +223,23 @@ def main():
             "follow_logs": [],
         })
         try:
-            client.insert_lead(new_row)
+            _retry(lambda: client._req(
+                "POST", "/rest/v1/leads", body=[new_row],
+                extra_headers={"Prefer": "return=minimal"}),
+                f"插入 {r['name']}")
             ok_i += 1
-        except SupabaseError as e:
+        except Exception as e:
             print(f"  插入失败 {r['name']}: {e}")
     for r, lead in updated:
         patch = {k: r.get(k) for k in SHEET_FIELDS}
         try:
-            client.update_lead(lead["id"], patch)
+            _retry(lambda: client._req(
+                "PATCH", "/rest/v1/leads",
+                params={"id": f"eq.{lead['id']}"}, body=patch,
+                extra_headers={"Prefer": "return=minimal"}),
+                f"更新 {r['name']}")
             ok_u += 1
-        except SupabaseError as e:
+        except Exception as e:
             print(f"  更新失败 {r['name']}: {e}")
     print(f"完成：新增 {ok_i}/{len(inserted)}，更新 {ok_u}/{len(updated)}")
     return 0 if ok_i == len(inserted) and ok_u == len(updated) else 1
