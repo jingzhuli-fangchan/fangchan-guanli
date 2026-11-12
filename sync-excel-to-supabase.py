@@ -118,6 +118,9 @@ def plan_sync(rows, existing):
         else:
             skipped.append(r)
     return inserted, updated, skipped, no_key
+
+
+def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--excel", default=DEFAULT_EXCEL)
     ap.add_argument("--dry-run", action="store_true")

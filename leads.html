@@ -82,7 +82,7 @@ main{padding:12px 12px 0;}
 .hint{font-size:12px; color:var(--muted); line-height:1.8; padding:0 4px;}
 .foot{margin:18px 4px 0; text-align:center;}
 .foot a{color:var(--green-d); font-size:14px; text-decoration:none;}
-#view-login{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(160deg,#0a9e63,#0bbf7a);}
+#view-login,#view-setpw{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(160deg,#0a9e63,#0bbf7a);}
 .login-card{background:#fff; border-radius:20px; padding:28px 22px; width:100%; max-width:360px; box-shadow:0 10px 40px rgba(0,0,0,.18);}
 .login-card h1{margin:0 0 4px; font-size:22px; text-align:center;}
 .login-card .sub{text-align:center; color:var(--muted); font-size:13px; margin-bottom:20px;}
@@ -104,6 +104,18 @@ main{padding:12px 12px 0;}
     <div class="rowbtns"><button class="btn btn-p" onclick="doLogin()">登录</button></div>
     <p class="hint" style="text-align:center;margin-top:14px">账号由小景开通，和房产工作台同一个账号。<br>如果一直登录不上，可能是云端数据库还没恢复，<br>恢复后刷新页面再试。</p>
     <p class="hint" style="text-align:center" id="net-hint"></p>
+  </div>
+</div>
+<!-- 首次设置密码（从邮件链接进来时显示） -->
+<div id="view-setpw" style="display:none">
+  <div class="login-card">
+    <h1>🔑 设置登录密码</h1>
+    <p class="sub">第一次登录，先设一个你记得住的密码</p>
+    <div class="f-row"><label>新密码</label><input id="setpw-1" type="password" placeholder="至少 6 位" autocomplete="new-password"></div>
+    <div class="f-row"><label>再输一次</label><input id="setpw-2" type="password" placeholder="再输一次新密码" autocomplete="new-password"></div>
+    <div class="login-err" id="setpw-err"></div>
+    <div class="rowbtns"><button class="btn btn-p" onclick="doSetPw()">保存并进入</button></div>
+    <p class="hint" style="text-align:center;margin-top:14px">设好后以后就用这个密码登录，不用再点邮件链接。</p>
   </div>
 </div>
 <!-- 主应用 -->
@@ -199,6 +211,21 @@ async function doLogin(){
   await enter();
 }
 async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} location.reload(); }
+/* ===== 首次设置密码（邮件邀请 / 找回密码链接进来时） ===== */
+async function doSetPw(){
+  const p1=document.getElementById('setpw-1').value;
+  const p2=document.getElementById('setpw-2').value;
+  const err=document.getElementById('setpw-err');
+  err.textContent='';
+  if(!p1||p1.length<6){ err.textContent='密码至少 6 位'; return; }
+  if(p1!==p2){ err.textContent='两次输入不一致'; return; }
+  let res;
+  try{ res=await sb.auth.updateUser({password:p1}); }
+  catch(e){ err.textContent='保存失败：网络不通，稍后再试'; return; }
+  if(res.error){ err.textContent='保存失败：'+res.error.message; return; }
+  await enter();
+}
+document.getElementById('setpw-2').addEventListener('keydown',e=>{ if(e.key==='Enter')doSetPw(); });
 async function enter(){
   const {data}=await sb.auth.getUser(); USER=data.user;
   if(!USER) return;
@@ -375,6 +402,14 @@ async function copyNum(num,btn){
 /* ===== 启动 ===== */
 (async function(){
   try{
+    const hash=new URLSearchParams(location.hash.slice(1));
+    const htype=hash.get('type');
+    if((htype==='recovery'||htype==='invite')&&hash.get('access_token')){
+      document.getElementById('view-login').style.display='none';
+      document.getElementById('view-setpw').style.display='flex';
+      history.replaceState(null,'',location.pathname+location.search);
+      return;
+    }
     const {data}=await sb.auth.getSession();
     if(data.session){ await enter(); }
   }catch(e){
