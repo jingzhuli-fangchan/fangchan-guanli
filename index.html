@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <title>小景·房产工作台</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-js.min.js"></script>
 <style>
 :root{
   --green:#0a9e63; --green-d:#07824f; --bg:#f2f5f3; --card:#ffffff;
@@ -156,6 +156,7 @@ select.full{width:100%; padding:11px 12px; border:1px solid var(--line); border-
     <div class="sect">操作日志（谁动了哪块）</div>
     <div class="card" id="log-list"><div class="loading">加载中…</div></div>
     <div class="rowbtns"><button class="btn btn-g danger" onclick="doLogout()">退出登录</button></div>
+    <div class="rowbtns" style="margin-top:8px"><button class="btn btn-p" onclick="location.href='leads.html'">📋 线索跟进（独立页面）</button></div>
     <p class="hint">数据保存在云端，多人实时同步。v2.0 · 内部版</p>
   </section>
 </main>

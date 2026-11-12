@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="线索跟进">
+<meta name="theme-color" content="#0a9e63">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>线索跟进 · 小景房产工作台</title>
+<script src="supabase-js.min.js"></script>
+<style>
+:root{
+  --green:#0a9e63; --green-d:#07824f; --bg:#f2f5f3; --card:#ffffff;
+  --text:#1c1c1e; --muted:#8a8f8c; --line:#e8ecea; --red:#e5484d; --orange:#f59e0b; --blue:#2f80ed;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); max-width:520px; margin:0 auto; padding-bottom:40px;}
+header{position:sticky; top:0; z-index:10; background:linear-gradient(135deg,#0a9e63,#0bbf7a); color:#fff; padding:16px 16px 14px;}
+header h1{margin:0; font-size:19px; font-weight:700;}
+header p{margin:4px 0 0; font-size:12px; opacity:.9;}
+header .me{font-size:11px; opacity:.85; margin-top:2px;}
+header .net{font-size:11px; margin-top:4px; opacity:.9;}
+main{padding:12px 12px 0;}
+.toolbar{display:flex; gap:8px; margin-bottom:10px;}
+.toolbar input[type=search]{flex:1; min-width:0; padding:12px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:#fff; outline:none;}
+.toolbar select{padding:10px 8px; border:1px solid var(--line); border-radius:10px; font-size:13px; background:#fff; max-width:108px;}
+.toolbar .btn{flex:0 0 auto; padding:0 16px;}
+.stats{display:flex; gap:8px; margin-bottom:10px;}
+.stat{flex:1; background:#fff; border-radius:12px; padding:10px 8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.stat .n{font-size:20px; font-weight:800; color:var(--green-d);}
+.stat .n.warn{color:#c2410c;}
+.stat .t{font-size:11px; color:var(--muted); margin-top:2px;}
+.card{background:var(--card); border-radius:14px; padding:14px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.card.pinned{border:2px solid var(--orange);}
+.card h3{margin:0 0 6px; font-size:16px;}
+.card .meta{font-size:13px; color:var(--muted); line-height:1.8;}
+.card .intent{font-size:13px; line-height:1.7; margin-top:4px; background:#f7f9f8; border-radius:8px; padding:8px 10px;}
+.chip{display:inline-block; font-size:11px; padding:3px 9px; border-radius:20px; margin:2px 4px 2px 0; background:#eef2f0; color:#555;}
+.chip.g{background:#e5f6ec; color:var(--green-d);}
+.chip.o{background:#fef3e2; color:#b45309;}
+.chip.b{background:#e8f1fe; color:#1d5fc2;}
+.chip.r{background:#fdecec; color:#c0362c;}
+.chip.gr{background:#f1f1f1; color:#777;}
+.chip.pin{background:#fef3e2; color:#b45309; font-weight:700;}
+.phone-row{display:flex; align-items:center; gap:8px; margin-top:8px; background:#f7f9f8; border-radius:10px; padding:10px 12px;}
+.phone-row .num{flex:1; min-width:0; font-size:17px; font-weight:700; letter-spacing:.5px;}
+.phone-row .num small{display:block; font-size:11px; color:var(--muted); font-weight:400; letter-spacing:0;}
+.btn{flex:1; padding:12px 0; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; text-align:center; text-decoration:none; display:block;}
+.btn-p{background:var(--green); color:#fff;}
+.btn-p:active{background:var(--green-d);}
+.btn-g{background:#eef2f0; color:#333;}
+.btn-call{background:var(--blue); color:#fff; flex:0 0 auto; padding:12px 18px;}
+.btn-copy{background:#e8f1fe; color:#1d5fc2; flex:0 0 auto; padding:12px 14px;}
+.btn:disabled{opacity:.45;}
+.rowbtns{display:flex; gap:8px; margin-top:10px;}
+.rowbtns .btn{font-size:14px; padding:11px 0;}
+.danger{color:var(--red);}
+.next-tag{display:inline-block; font-size:12px; font-weight:700; padding:4px 10px; border-radius:20px; margin-top:6px; background:#e8f1fe; color:#1d5fc2;}
+.next-tag.over{background:#fdecec; color:#c0362c;}
+.next-tag.today{background:#fef3e2; color:#b45309;}
+.logs{margin-top:8px; border-top:1px dashed var(--line); padding-top:8px;}
+.logs summary{font-size:13px; color:var(--muted); cursor:pointer; padding:4px 0;}
+.log-item{font-size:13px; line-height:1.7; padding:6px 0; border-bottom:1px solid #f2f5f3;}
+.log-item:last-child{border-bottom:none;}
+.log-item .lt{color:var(--muted); font-size:11px;}
+.empty{text-align:center; color:var(--muted); padding:40px 20px; font-size:14px; line-height:1.8;}
+.loading{text-align:center; color:var(--muted); padding:40px; font-size:14px;}
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; display:none; align-items:flex-end; justify-content:center;}
+.modal-bg.show{display:flex;}
+.sheet{background:#fff; width:100%; max-width:520px; max-height:88vh; overflow-y:auto; border-radius:18px 18px 0 0; padding:18px 16px 26px; animation:up .25s;}
+@keyframes up{from{transform:translateY(40px); opacity:.6;} to{transform:none; opacity:1;}}
+.sheet h2{margin:0 0 14px; font-size:17px;}
+.f-row{margin-bottom:12px;}
+.f-row label{display:block; font-size:13px; color:#555; margin-bottom:5px;}
+.f-row input,.f-row select,.f-row textarea{width:100%; padding:12px; border:1px solid var(--line); border-radius:10px; font-size:16px; background:#fafbfb; outline:none;}
+.f-row input:focus,.f-row select:focus,.f-row textarea:focus{border-color:var(--green); background:#fff;}
+.f-row textarea{min-height:90px; resize:vertical;}
+.toast{position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.82); color:#fff; padding:10px 20px; border-radius:20px; font-size:14px; z-index:99; display:none; max-width:92vw; text-align:center;}
+.hint{font-size:12px; color:var(--muted); line-height:1.8; padding:0 4px;}
+.foot{margin:18px 4px 0; text-align:center;}
+.foot a{color:var(--green-d); font-size:14px; text-decoration:none;}
+#view-login{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(160deg,#0a9e63,#0bbf7a);}
+.login-card{background:#fff; border-radius:20px; padding:28px 22px; width:100%; max-width:360px; box-shadow:0 10px 40px rgba(0,0,0,.18);}
+.login-card h1{margin:0 0 4px; font-size:22px; text-align:center;}
+.login-card .sub{text-align:center; color:var(--muted); font-size:13px; margin-bottom:20px;}
+.login-card .f-row input{font-size:16px;}
+.login-err{color:var(--red); font-size:13px; min-height:20px; text-align:center; margin:6px 0;}
+.errcard{background:#fff; border:1px solid #f3c2c4; border-radius:14px; padding:16px; margin-bottom:10px; font-size:14px; line-height:1.8;}
+.errcard b{color:var(--red);}
+</style>
+</head>
+<body>
+<!-- 登录 -->
+<div id="view-login">
+  <div class="login-card">
+    <h1>📋 线索跟进</h1>
+    <p class="sub">抖音购房线索 · 内部使用</p>
+    <div class="f-row"><label>邮箱</label><input id="login-email" type="email" placeholder="你的邮箱" autocomplete="username"></div>
+    <div class="f-row"><label>密码</label><input id="login-pass" type="password" placeholder="密码" autocomplete="current-password"></div>
+    <div class="login-err" id="login-err"></div>
+    <div class="rowbtns"><button class="btn btn-p" onclick="doLogin()">登录</button></div>
+    <p class="hint" style="text-align:center;margin-top:14px">账号由小景开通，和房产工作台同一个账号。<br>如果一直登录不上，可能是云端数据库还没恢复，<br>恢复后刷新页面再试。</p>
+    <p class="hint" style="text-align:center" id="net-hint"></p>
+  </div>
+</div>
+<!-- 主应用 -->
+<div id="view-app" style="display:none">
+<header>
+  <h1>📋 线索跟进</h1>
+  <p>抖音线索 · 置顶优先 · 改完自动存云端</p>
+  <div class="me" id="me-line"></div>
+  <div class="net" id="net-line"></div>
+</header>
+<main>
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="搜抖音名 / 姓名 / 微信 / 电话…" oninput="renderLeads()">
+    <select id="f-status" onchange="renderLeads()">
+      <option value="">全部状态</option><option>待联系</option><option>已联系</option><option>已带看</option><option>已成交</option><option>无意向</option>
+    </select>
+    <button class="btn btn-g" onclick="refreshLeads(true)">刷新</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="list-leads"><div class="loading">加载中…</div></div>
+  <div class="foot">
+    <div class="rowbtns"><button class="btn btn-g danger" onclick="doLogout()">退出登录</button></div>
+    <p style="margin:14px 0 0"><a href="index.html">← 回房产工作台</a></p>
+    <p class="hint">数据保存在云端（Supabase），手机、电脑登录都能看到同一份。</p>
+  </div>
+</main>
+</div>
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ===== Supabase（与工作台同一项目） ===== */
+const SUPABASE_URL='https://sjdnqqacbjbqclduohsi.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqZG5xcWFjYmpicWNsZHVvaHNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNTEzOTMsImV4cCI6MjEwNzgyNzM5M30.2ISX0I-pfhWcIQlf1L0GrlWKtoAxsKjRCemZ1QJipVA';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+let USER=null;
+let LEADS=[];
+const FOLLOW_STATUS=['待联系','已联系','已带看','已成交','无意向'];
+
+/* ===== 工具 ===== */
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',2200); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtLeadTime(s){
+  if(!s) return '';
+  const d=new Date(s.replace(' ','T'));
+  if(isNaN(d)) return String(s);
+  const now=new Date();
+  const hm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const md=(d.getMonth()+1)+'月'+d.getDate()+'日';
+  return d.getFullYear()===now.getFullYear() ? md+' '+hm : d.getFullYear()+'年'+md+' '+hm;
+}
+function fmtDay(ds){
+  if(!ds) return '';
+  const d=new Date(ds+'T00:00:00');
+  if(isNaN(d)) return String(ds);
+  return (d.getMonth()+1)+'月'+d.getDate()+'日';
+}
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function statusChip(s){
+  const m={'待联系':'o','已联系':'b','已带看':'g','已成交':'r','无意向':'gr'};
+  return '<span class="chip '+(m[s]||'')+'">'+esc(s||'待联系')+'</span>';
+}
+function sortLeads(arr){
+  return arr.slice().sort((a,b)=>{
+    if(!!b.pinned-!!a.pinned) return (!!b.pinned?1:0)-(!!a.pinned?1:0);
+    const ta=a.lead_time?new Date(a.lead_time.replace(' ','T')).getTime():0;
+    const tb=b.lead_time?new Date(b.lead_time.replace(' ','T')).getTime():0;
+    return tb-ta;
+  });
+}
+function matchQ(l,q){
+  if(!q) return true;
+  q=q.toLowerCase();
+  return [l.name,l.customer_name,l.wechat_name,l.wechat,l.phone,l.phone_clean,l.douyin_id]
+    .filter(Boolean).some(v=>String(v).toLowerCase().includes(q));
+}
+
+/* ===== 登录 ===== */
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-err');
+  err.textContent='';
+  if(!email||!pw){ err.textContent='请输入邮箱和密码'; return; }
+  let res;
+  try{ res=await sb.auth.signInWithPassword({email,password:pw}); }
+  catch(e){ err.textContent='连接失败：云端可能还没恢复，稍后再试'; return; }
+  if(res.error){ err.textContent='登录失败：'+res.error.message; return; }
+  await enter();
+}
+async function doLogout(){ try{ await sb.auth.signOut(); }catch(e){} location.reload(); }
+async function enter(){
+  const {data}=await sb.auth.getUser(); USER=data.user;
+  if(!USER) return;
+  document.getElementById('view-login').style.display='none';
+  document.getElementById('view-app').style.display='block';
+  document.getElementById('me-line').textContent='已登录：'+USER.email;
+  await refreshLeads();
+}
+document.getElementById('login-pass').addEventListener('keydown',e=>{ if(e.key==='Enter')doLogin(); });
+
+/* ===== 数据拉取 ===== */
+async function refreshLeads(manual){
+  const el=document.getElementById('list-leads');
+  const net=document.getElementById('net-line');
+  if(manual){ el.innerHTML='<div class="loading">加载中…</div>'; }
+  let res;
+  try{
+    res=await sb.from('leads').select('*');
+  }catch(e){
+    net.textContent='● 云端未连接（网络或数据库未恢复）';
+    el.innerHTML='<div class="errcard"><b>数据加载失败。</b><br>可能原因：云端数据库还没恢复（需在 Supabase 控制台点 Resume），或线索表还没建好（需先执行 leads-schema.sql）。<br>恢复后点“刷新”再试。</div>';
+    return;
+  }
+  if(res.error){
+    net.textContent='● 云端未连接';
+    const msg=String(res.error.message||'');
+    const hint=msg.indexOf('does not exist')>=0||msg.indexOf('leads')>=0
+      ? '线索表还没建好：请先在 Supabase SQL 编辑器里执行 leads-schema.sql，再刷新。'
+      : '可能原因：云端数据库还没恢复（需在 Supabase 控制台点 Resume）。恢复后点“刷新”再试。';
+    el.innerHTML='<div class="errcard"><b>数据加载失败：</b>'+esc(msg)+'<br>'+hint+'</div>';
+    return;
+  }
+  net.textContent='● 云端已连接';
+  LEADS=sortLeads(res.data||[]);
+  renderLeads();
+}
+
+/* ===== 列表渲染 ===== */
+function renderLeads(){
+  const q=(document.getElementById('q').value||'').trim();
+  const st=document.getElementById('f-status').value;
+  const today=todayStr();
+  const todo=LEADS.filter(l=>l.next_follow_up && l.next_follow_up<=today && l.follow_status!=='已成交' && l.follow_status!=='无意向').length;
+  const wait=LEADS.filter(l=>l.follow_status==='待联系').length;
+  document.getElementById('stats').innerHTML=
+    '<div class="stat"><div class="n">'+LEADS.length+'</div><div class="t">线索总数</div></div>'+
+    '<div class="stat"><div class="n">'+wait+'</div><div class="t">待联系</div></div>'+
+    '<div class="stat"><div class="n'+(todo?' warn':'')+'">'+todo+'</div><div class="t">今天到期需跟进</div></div>';
+  let arr=LEADS.filter(l=>matchQ(l,q));
+  if(st) arr=arr.filter(l=>l.follow_status===st);
+  const el=document.getElementById('list-leads');
+  if(!LEADS.length){ el.innerHTML='<div class="empty">还没有线索<br>新线索每天晚上自动从抖音线索表同步进来</div>'; return; }
+  if(!arr.length){ el.innerHTML='<div class="empty">没有符合条件的线索<br>换个关键词或状态试试</div>'; return; }
+  el.innerHTML=arr.map(l=>{
+    const logs=(l.follow_logs||[]).slice().sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+    const phoneHtml=l.phone_clean
+      ? '<div class="phone-row"><div class="num">'+esc(l.phone_clean)+'</div>'+
+        '<a class="btn btn-call" href="tel:'+esc(l.phone_clean)+'">📞 拨打</a>'+
+        '<button class="btn btn-copy" onclick="copyNum(\''+esc(l.phone_clean)+'\',this)">📋 复制</button></div>'
+      : (l.phone
+        ? '<div class="phone-row"><div class="num">'+esc(l.phone)+'<small>号码不完整，拨打前先在抖音后台补全</small></div></div>'
+        : '<div class="phone-row"><div class="num" style="font-size:14px;color:#999">未留电话</div></div>');
+    let nextHtml='';
+    if(l.next_follow_up){
+      const cls=l.next_follow_up<today?'over':(l.next_follow_up===today?'today':'');
+      nextHtml='<span class="next-tag '+cls+'">📅 下次跟进：'+fmtDay(l.next_follow_up)+(l.next_follow_up<today?'（已过期）':l.next_follow_up===today?'（今天）':'')+'</span>';
+    }
+    const who=[];
+    if(l.customer_name) who.push('客户：'+esc(l.customer_name));
+    if(l.wechat_name) who.push('微信名：'+esc(l.wechat_name));
+    if(l.wechat) who.push('微信号：'+esc(l.wechat));
+    const logsHtml=logs.length
+      ? '<div class="logs"><details><summary>跟进记录（共'+logs.length+'条）</summary>'+
+        logs.map(g=>'<div class="log-item"><div>'+esc(g.note||'')+'</div><div class="lt">'+fmtLeadTime(g.created_at)+'</div></div>').join('')+
+        '</details></div>'
+      : '<div class="logs"><div style="font-size:13px;color:#999">暂无跟进记录</div></div>';
+    return '<div class="card'+(l.pinned?' pinned':'')+'">'+
+      '<h3>'+(l.pinned?'📌 ':'')+esc(l.name||'未命名')+' '+statusChip(l.follow_status)+'</h3>'+
+      '<div class="meta">'+
+        (l.douyin_id?'抖音号：'+esc(l.douyin_id)+' · ':'')+
+        (l.region?'归属地：'+esc(l.region)+' · ':'')+
+        '留资：'+fmtLeadTime(l.lead_time)+
+      '</div>'+
+      (who.length?'<div class="meta">'+who.join(' · ')+'</div>':'')+
+      (l.remark?'<div class="meta">📝 '+esc(l.remark)+'</div>':'')+
+      (l.intent?'<div class="intent">💬 '+esc(l.intent)+'</div>':'')+
+      (l.source?'<div class="meta" style="font-size:12px">来源：'+esc(l.source)+'</div>':'')+
+      nextHtml+
+      phoneHtml+
+      logsHtml+
+      '<div class="rowbtns">'+
+        '<button class="btn btn-p" onclick="openFollow(\''+l.id+'\')">✏️ 跟进</button>'+
+        '<button class="btn btn-g" onclick="openRemark(\''+l.id+'\')">📝 备注</button>'+
+        '<button class="btn btn-g" onclick="togglePin(\''+l.id+'\','+(l.pinned?1:0)+')">'+(l.pinned?'取消置顶':'📌 置顶')+'</button>'+
+        '<button class="btn btn-g danger" onclick="openDel(\''+l.id+'\')">删除</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+/* ===== 弹窗 ===== */
+function openSheet(html){ document.getElementById('sheet').innerHTML=html; document.getElementById('modalBg').classList.add('show'); }
+function closeSheet(){ document.getElementById('modalBg').classList.remove('show'); }
+function findLead(id){ return LEADS.find(l=>String(l.id)===String(id)); }
+
+function openFollow(id){
+  const l=findLead(id); if(!l) return;
+  openSheet('<h2>✏️ 跟进 · '+esc(l.name||'')+'</h2>'+
+    '<div class="f-row"><label>新跟进记录（写了就追加，带时间）</label><textarea id="f-note" placeholder="例如：打了电话，客户说周末再看"></textarea></div>'+
+    '<div class="f-row"><label>状态</label><select id="f-status2">'+FOLLOW_STATUS.map(s=>'<option'+(l.follow_status===s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'+
+    '<div class="f-row"><label>下次跟进日期</label><input id="f-next" type="date" value="'+(l.next_follow_up||'')+'"><div style="font-size:12px;color:#999;margin-top:4px">留空表示不设下次跟进</div></div>'+
+    '<div class="rowbtns"><button class="btn btn-g" onclick="closeSheet()">取消</button><button class="btn btn-p" onclick="saveFollow(\''+l.id+'\')">保存</button></div>');
+}
+async function saveFollow(id){
+  const l=findLead(id); if(!l) return;
+  const note=document.getElementById('f-note').value.trim();
+  const st=document.getElementById('f-status2').value;
+  const next=document.getElementById('f-next').value||null;
+  const logs=(l.follow_logs||[]).slice();
+  if(note) logs.push({id:Date.now(),note:note,created_at:new Date().toISOString()});
+  const {error}=await sb.from('leads').update({follow_status:st,next_follow_up:next,follow_logs:logs}).eq('id',id);
+  if(error){ toast('保存失败：'+error.message); return; }
+  l.follow_status=st; l.next_follow_up=next; l.follow_logs=logs;
+  closeSheet(); renderLeads(); toast('已保存');
+}
+function openRemark(id){
+  const l=findLead(id); if(!l) return;
+  openSheet('<h2>📝 备注 · '+esc(l.name||'')+'</h2>'+
+    '<div class="f-row"><label>客户姓名</label><input id="r-name" value="'+esc(l.customer_name||'')+'" placeholder="客户真名"></div>'+
+    '<div class="f-row"><label>微信名</label><input id="r-wx" value="'+esc(l.wechat_name||'')+'" placeholder="微信里的名字"></div>'+
+    '<div class="f-row"><label>备注（其他说明）</label><textarea id="r-remark" placeholder="例如：孩子住大华诺斐墅">'+esc(l.remark||'')+'</textarea></div>'+
+    '<div class="rowbtns"><button class="btn btn-g" onclick="closeSheet()">取消</button><button class="btn btn-p" onclick="saveRemark(\''+l.id+'\')">保存</button></div>');
+}
+async function saveRemark(id){
+  const l=findLead(id); if(!l) return;
+  const cn=document.getElementById('r-name').value.trim()||null;
+  const wn=document.getElementById('r-wx').value.trim()||null;
+  const rm=document.getElementById('r-remark').value.trim()||null;
+  const {error}=await sb.from('leads').update({customer_name:cn,wechat_name:wn,remark:rm}).eq('id',id);
+  if(error){ toast('保存失败：'+error.message); return; }
+  l.customer_name=cn; l.wechat_name=wn; l.remark=rm;
+  closeSheet(); renderLeads(); toast('已保存');
+}
+function openDel(id){
+  const l=findLead(id); if(!l) return;
+  openSheet('<h2>🗑 删除线索</h2>'+
+    '<p style="font-size:15px;line-height:1.8">确定删除 <b>'+esc(l.name||'')+'</b> 吗？<br>这条线索的跟进记录会一起删掉，删了就找不回来了。</p>'+
+    '<div class="rowbtns"><button class="btn btn-g" onclick="closeSheet()">取消</button><button class="btn btn-p" style="background:var(--red)" onclick="doDel(\''+l.id+'\')">确认删除</button></div>');
+}
+async function doDel(id){
+  const {error}=await sb.from('leads').delete().eq('id',id);
+  if(error){ toast('删除失败：'+error.message); return; }
+  LEADS=LEADS.filter(l=>String(l.id)!==String(id));
+  closeSheet(); renderLeads(); toast('已删除');
+}
+async function togglePin(id,pinned){
+  const {error}=await sb.from('leads').update({pinned:!pinned}).eq('id',id);
+  if(error){ toast('操作失败：'+error.message); return; }
+  const l=findLead(id); if(l) l.pinned=!pinned;
+  LEADS=sortLeads(LEADS); renderLeads(); toast(pinned?'已取消置顶':'已置顶');
+}
+
+/* ===== 复制号码 ===== */
+async function copyNum(num,btn){
+  try{ await navigator.clipboard.writeText(num); toast('已复制：'+num); }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=num; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('已复制：'+num); }catch(e2){ toast('复制失败，请长按号码手动复制'); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* ===== 启动 ===== */
+(async function(){
+  try{
+    const {data}=await sb.auth.getSession();
+    if(data.session){ await enter(); }
+  }catch(e){
+    const h=document.getElementById('net-hint');
+    if(h) h.textContent='⚠️ 连接不上云端：可能是云端数据库还没恢复，恢复后刷新页面再试。';
+  }
+})();
+</script>
+</body>
+</html>
